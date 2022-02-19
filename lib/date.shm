@@ -35,6 +35,5 @@ function date_timezones {
 
 # ISO8601 フォーマットを取得（拡張形式）
 function date_format_iso8601 {
-    echo "+%Y-%m-%dT%H:%M:%S+%Z"
+    echo "+%Y-%m-%dT%H:%M:%S%:z"
 }
-
