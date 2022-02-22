@@ -1,0 +1,55 @@
+# stdout に出力
+function stdlog {
+    echo "${@}"
+}
+
+# stderr に出力
+function errlog {
+    stdlog "${@}" 1>&2
+}
+
+# stderr に出力：強制終了
+function dielog {
+    errlog "${@}"
+    exit 77
+}
+
+# 再帰的に文言検索
+function rgrep {
+    [ -n "${1:-}" ] && egrep "${1}" | rgrep "${@:2}" || tee
+}
+
+# 行番号を取得
+function ngrep {
+    egrep -n "${1}" | sed 's/:.*//g'
+}
+
+# ランダムな文字列を取得
+function randstr {
+    local charset="${1:-a-zA-Z0-9}"
+    cat /dev/urandom | tr -dc "${charset}" | fold -w 4096 | head -n 1
+}
+
+# 単位展開
+function expand_unit {
+    local num_str=${1}
+    case "${num_str: -1}" in
+        [kK])   echo $((${num_str%?} * (1024**1)));;    # Kbyte
+        [mM])   echo $((${num_str%?} * (1024**2)));;    # Mbyte
+        [gG])   echo $((${num_str%?} * (1024**3)));;    # Gbyte
+        [pP])   echo $((${num_str%?} * (1024**4)));;    # Pbyte
+        *)      echo ${num_str} # そのまま
+    esac
+}
+
+# 配列に sed を適用
+function array_sed {
+    local rule="${1:?ERROR: require rule.}"
+    echo "${@:2}" | perl -pe 's/\s/\n/g' | sed "${rule}"
+}
+
+# 配列からランダムな要素を一つ取得
+function array_rand {
+    local max="${1:?ERROR: require pickup max.}"
+    echo "${@:2}" | perl -pe 's/\s/\n/g' | shuf | head -n ${max}
+}

@@ -1,0 +1,14 @@
+# 暗号化
+function encrypt {
+    local plain="${1:?ERROR: require plain string.}"
+    local crypt_key="${2:?ERROR: require crypt key.}"
+    echo "${plain}" | openssl enc -e -aes-256-cbc -base64 -iter 256 -k "${crypt_key}" | tr -d '\n'
+    echo '' # 改行用
+}
+
+# 復号
+function decrypt {
+    local crypt="${1:?ERROR: require crypt string.}"
+    local crypt_key="${2:?ERROR: require crypt key.}"
+    echo "${crypt}" | fold -64 | openssl enc -d -aes-256-cbc -base64 -iter 256 -k "${crypt_key}"
+}

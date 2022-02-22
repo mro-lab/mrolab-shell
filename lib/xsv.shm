@@ -1,0 +1,43 @@
+# tsv を空白区切り形式に変換
+function tsv2ssv {
+    perl -pe 's/ /^/g'  |   # 値の空白は ^ に変換
+    perl -pe 's/\t/ /g'     # タブを "," に変換
+}
+
+# tsv を空白なしの tsv に変換
+function tsv2tsvs {
+    perl -pe 's/ /^/g'      # 値の空白は ^ に変換
+}
+
+# tsv を csv に変換：ダブルクォートあり
+function tsv2csv {
+    perl -pe 's/"/""/g'         |   # " を "" にエスケープ：Excel 形式
+    perl -pe 's/^(.*)$/"\1"/'   |   # 外側の " を付与
+    perl -pe 's/\t/","/g'           # タブを "," に変換
+}
+
+# tsv を csv に変換：ダブルクォートなし：空白あり
+function tsv2csvn {
+    perl -pe 's/,/;/g'  |   # 値の , は ; に変換
+    perl -pe 's/\t/,/g'     # タブを "," に変換
+}
+
+# tsv を csv に変換：ダブルクォートなし：空白なし
+function tsv2csvs {
+    perl -pe 's/,/;/g'  |   # 値の , は ; に変換
+    perl -pe 's/ /^/g'  |   # 空白は ^ に変換
+    perl -pe 's/\t/,/g'     # タブを "," に変換
+}
+
+# tsv を指定形式に変換
+function tsv2xsv {
+    local type="${1:-}"
+    case "${type}" in
+        ssv)    tsv2ssv     ;;	# tsv を空白区切り形式に変換
+        tsvs)   tsv2tsvs    ;;	# tsv を空白なしの tsv に変換
+        csv)    tsv2csv     ;;	# tsv を csv に変換：ダブルクォートあり
+        csvn)   tsv2csvn    ;;	# tsv を csv に変換：ダブルクォートなし：空白あり
+        csvs)   tsv2csvs    ;;	# tsv を csv に変換：ダブルクォートなし：空白なし
+        *)      cat -       ;;	# tsv のまま
+    esac
+}

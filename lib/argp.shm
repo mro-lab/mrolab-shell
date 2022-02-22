@@ -1,0 +1,20 @@
+# 引数解析
+function argp {
+    ARGV=("${@}")   # global：純粋な引数
+    ARGP=()         # global：-- を除外した引数
+    local word
+    local parse_end
+    for word in "${@}"; do
+        if [ -z "${parse_end:-}" ] && [ "--" = "${word:0:2}" ]; then
+            case "${word}" in
+                --)     parse_end=1         ;;  # 解釈を終了する
+                --!*)   eval "${word#--!}"  ;;  # 事前実行
+                --*=*)  eval "${word#--}"   ;;  # key=val になる
+                --*)    eval "${word#--}=1" ;;  # key=1 になる
+            esac
+        else
+            ARGP+=("${word}")   # 引数整理
+        fi
+    done
+}
+
