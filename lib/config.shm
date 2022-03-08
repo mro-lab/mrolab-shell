@@ -1,0 +1,9 @@
+# dig：プライベートドメインのレコード取得
+function private_config {
+    local domain="${1:?ERROR: require private domain.}"
+    local record="${2:-TXT}"
+    case "${record}" in
+        TXT)    dig -t TXT   +short "${domain}" | tr -d '"'     ;;
+        CNAME)  dig -t CNAME +short "${domain}" | sed 's/\.$//' ;;
+    esac
+}
