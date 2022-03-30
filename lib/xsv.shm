@@ -1,7 +1,7 @@
 # tsv を空白区切り形式に変換
 function tsv2ssv {
     perl -pe 's/ /^/g'  |   # 値の空白は ^ に変換
-    perl -pe 's/\t/ /g'     # タブを "," に変換
+    perl -pe 's/\t/ /g'     # タブを空白に変換
 }
 
 # tsv を空白なしの tsv に変換
