@@ -53,3 +53,14 @@ function array_rand {
     local max="${1:?ERROR: require pickup max.}"
     echo "${@:2}" | perl -pe 's/\s/\n/g' | shuf | head -n ${max}
 }
+
+# 環境変数を適用して cat
+function ecat {
+    local file_path="${1:?ERROR: require file path.}"
+    local sed_filter="${2:-s/^//}"
+    source <({
+        echo "cat - << EOF"
+        cat "${file_path}" | sed "${sed_filter}"
+        echo "EOF"
+    })
+}
