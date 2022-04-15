@@ -57,10 +57,51 @@ function array_rand {
 # 環境変数を適用して cat
 function ecat {
     local file_path="${1:?ERROR: require file path.}"
-    local sed_filter="${2:-s/^//}"
+    local ignore_variables="${2:-}" # 無視したい変数名を指定
+    local ignore_filter=""
+    [ -n "${ignore_variables}" ] && ignore_filter=$(printf 's/(\$\{(%s)})/\\\\\\1/g' "${ignore_variables// /|}")
     source <({
         echo "cat - << EOF"
-        cat "${file_path}" | sed "${sed_filter}"
+        cat "${file_path}" | perl -pe "${ignore_filter:-}"
         echo "EOF"
     })
+}
+
+# 数値を指定した基数で文字列化
+function n2b {
+    local base="${1:?ERROR: require base of number. (2|8|16|62)}"
+    local num="${2:?ERROR: require number.}"
+    local charset=($(echo {0..9} {A..Z} {a..z}))
+    local idx
+    {
+        while
+            idx=$((${num}%${base}))
+            num=$((${num}/${base}))
+            echo -n "${charset[@]:${idx}:1}"
+        do [ "0" != "${num}" ] || break; done
+    } | rev
+    echo ''     # 改行で表示を整える
+}
+
+# 文字列を指定した基数で数値化
+function b2n {
+    local base="${1:?ERROR: require base of number. (2|8|16|62)}"
+    local instr="${2:?ERROR: require string.}"
+    local str=$(echo "${instr}" | rev)
+    local charset=($(echo {0..9} {A..Z} {a..z}))
+    local charmap key idx num num_base total=0
+    declare -A charmap
+    
+    # 逆引き用の文字セットを作成
+    for key in "${charset[@]}"; do
+        charmap[${key}]="${#charmap[@]}"
+    done
+    
+    # 基数計算
+    for idx in $(seq 0 $(("${#str}"-1))); do
+        num=${charmap[${str:${idx}:1}]} # 文字から数値を決定
+        num_base=$((${base}**${idx}))   # 桁数に合わせて基数計算
+        total=$((${total}+(${num}*${num_base})))
+    done
+    echo "${total}"
 }
