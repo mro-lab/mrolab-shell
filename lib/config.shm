@@ -1,4 +1,5 @@
 # dig：プライベートドメインのレコード取得
+alias pc=private_config
 function private_config {
     local domain="${1:?ERROR: require private domain.}"
     local record="${2:-TXT}"

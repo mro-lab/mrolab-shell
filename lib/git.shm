@@ -1,0 +1,13 @@
+# git クローン
+function git_clone {
+    local repository="${1:?ERROR: require repository name. mro-lab/tools.git}"
+    local branch="${2:+-b ${2}}"        # ブランチ指定
+    local access_token="${3:+${3}@}"    # アクセストークン
+    local install_dir="${4:-.}"         # 保存先
+    (
+        mkdir -p "${install_dir}"
+        cd "${install_dir}"
+        rm -rf "${install_dir}/$(basename ${repository%.git})"
+        git clone ${branch:-} "https://${access_token:-}github.com/${repository%.git}"
+    )
+}
