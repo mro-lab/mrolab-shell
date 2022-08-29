@@ -2,7 +2,9 @@
 function encrypt {
     local plain="${1:?ERROR: require plain string.}"
     local crypt_key="${2:?ERROR: require crypt key.}"
-    echo "${plain}" | openssl enc -e -aes-256-cbc -base64 -iter 256 -k "${crypt_key}" | tr -d '\n'
+    local crypt_type="${3:-aes-256-cbc}"
+    local crypt_solt="${4:-256}"
+    echo "${plain}" | openssl enc -e "-${crypt_type}" -base64 -iter "${crypt_solt:-256}" -k "${crypt_key}" | tr -d '\n'
     echo '' # 改行用
 }
 
@@ -10,5 +12,7 @@ function encrypt {
 function decrypt {
     local crypt="${1:?ERROR: require crypt string.}"
     local crypt_key="${2:?ERROR: require crypt key.}"
-    echo "${crypt}" | fold -64 | openssl enc -d -aes-256-cbc -base64 -iter 256 -k "${crypt_key}"
+    local crypt_type="${3:-aes-256-cbc}"
+    local crypt_solt="${4:-256}"
+    echo "${crypt}" | fold -64 | openssl enc -d "-${crypt_type}" -base64 -iter "${crypt_solt:-256}" -k "${crypt_key}"
 }
