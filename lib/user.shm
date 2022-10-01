@@ -24,7 +24,15 @@ function create_keypair {
 # ユーザー作成
 function create_user {
     local user="${1:?ERROR: require username.}"
-    useradd -m "${user}" ||:
+    local nohome="${2:+-M}"
+    local nologin="${3:+-s /sbin/nologin}"
+    exists_user "${user}" || useradd "${user}" ${nohome} ${nologin}
+}
+
+# ユーザーが存在するかチェック
+function exists_user {
+    local user="${1:?ERROR: require username.}"
+    cat /etc/passwd | grep -P "^${user}:" 1>/dev/null
 }
 
 # www ディレクトリ作成
