@@ -1,0 +1,158 @@
+# mysql エクスポート
+function mysql_export {
+    local export_file="${1:?ERROR: require export dir. 20210821_mysql_export/mysqldump.sql}"
+    local mysql_user="${2:?ERROR: require mysql user. root}"
+    local mysql_dbname="${3:?ERROR: require mysql dbname. redmine}"
+    local mysql_option="${4:-}"
+    mysqldump -u "${mysql_user}" "${mysql_dbname}" ${mysql_option} > "${export_file}"
+}
+
+# mysql インポート
+function mysql_import {
+    local import_file="${1:?ERROR: require import dir. 20210821_mysql_export/mysqldump.sql}"
+    local mysql_user="${2:?ERROR: require mysql user. root}"
+    local mysql_dbname="${3:?ERROR: require mysql dbname. redmine}"
+    local mysql_option="${4:-}"
+    mysql -u "${mysql_user}" "${mysql_dbname}" ${mysql_option} < "${import_file}"
+}
+
+# mysql パスワード設定：初回のみ実行可能
+function mysql_root_passwd {
+    local passwd="${1:?ERROR: require passwd.}"
+    mysql -u root <<- EOS
+    SET PASSWORD = '${passwd}';
+EOS
+}
+
+# mysql 接続情報初期化
+function mysql_init {
+    local host="${1:?ERROR: require hostname. (localhost|localhost:3306}"
+    local user="${2:?ERROR: require user name.}"
+    local pswd="${3:?ERROR: require password.}"
+    local dbname="${4:-}"
+    local option="${5:-}"
+    local word=(${host/:/ })
+    export MYSQL_HOST="${word[0]}"
+    export MYSQL_PORT="${word[1]:-3306}"
+    export MYSQL_USER="${user}"
+    export MYSQL_PWD="${pswd}"
+    export MYSQL_DBNAME="${dbname}"
+    export MYSQL_OPTION="${option}"
+}
+
+# mysql クエリ発行：標準入力
+function mysql_query_stdin {
+    mysql -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" "${MYSQL_DBNAME:-}" ${MYSQL_OPTION:-} ${@}
+}
+
+# mysql クエリ発行
+function mysql_query {
+    local sql="${1:?ERROR: require sql.}"
+    mysql_query_stdin ${@:2} <<- EOS
+    ${sql}
+EOS
+}
+
+# mysql クエリ発行：結果を csv 出力
+# https://fd0.hatenablog.jp/entry/20090801/p1
+function mysql_query_csv {
+    local sql="${1:?ERROR: require sql.}"
+    local type="${2:-qq}"
+    case "${type}" in
+        table)  mysql_query "${sql}" --table ;;
+        noqq)   mysql_query "${sql}" | sed 's/\t/,/g' ;;
+        *)      mysql_query "${sql}" | sed 's/"/\\"/g' | sed 's/\t/","/g' | sed 's/^\(.*\)$/"\1"/' ;;
+    esac
+}
+
+# mysql ユーザー作成
+function mysql_create_user {
+    local user="${1:?ERROR: require user name.}"
+    local pass="${2:?ERROR: require password.}"
+    local host="${3:-localhost}"
+    mysql_query_stdin <<- EOS
+    CREATE USER '${user}'@'${host}' IDENTIFIED BY '${pass}'
+EOS
+}
+
+# mysql ユーザー削除
+function mysql_drop_user {
+    local user="${1:?ERROR: require user name.}"
+    local host="${2:-localhost}"
+    mysql_query_stdin <<- EOS
+    DROP USER '${user}'@'${host}'
+EOS
+}
+
+# mysql データベース作成
+function mysql_create_database {
+    local dbname="${1:?ERROR: require database name.}"
+    mysql_query_stdin <<- EOS
+    CREATE DATABASE IF NOT EXISTS ${dbname} 
+EOS
+}
+
+# mysql データベース削除
+function mysql_drop_database {
+    local dbname="${1:?ERROR: require database name.}"
+    mysql_query_stdin <<- EOS
+    DROP DATABASE IF EXISTS ${dbname} 
+EOS
+}
+
+# mysql 権限付与
+function mysql_grant {
+    local priv_type="${1:?ERROR: require privilege type. (ALL|SELECT|INSERT,UPDATE)}"
+    local priv_level="${2:?ERROR: require privilege level. (*.*|dbname.*|dbname.table_name)}"
+    local priv_user="${3:?ERROR: require privilege user name.}"
+    local priv_host="${4:-localhost}"
+    mysql_query_stdin <<- EOS
+    GRANT ${priv_type} ON ${priv_level} TO '${priv_user}'@'${priv_host}'
+EOS
+}
+
+# mysql 権限付与：DB に対して権限を付与
+function mysql_grant_database {
+    local dbname="${1:?ERROR: require database name.}"
+    local user="${2:?ERROR: require privilege user name.}"
+    local host="${3:-localhost}"
+    mysql_grant "ALL" "${dbname}.*" "${user}" "${host}"
+}
+
+# mysql 設定情報取得
+function mysql_show_variables {
+    local type="${1:-}"
+    mysql_query_csv "SHOW VARIABLES" "${type:-}"
+}
+
+# mysql ユーザー一覧取得
+function mysql_show_users {
+    local type="${1:-}"
+    mysql_query_csv "SELECT user, host FROM mysql.user" "${type:-}"
+}
+
+# mysql データベース一覧取得
+function mysql_show_databases {
+    local type="${1:-}"
+    mysql_query_csv "SHOW DATABASES" "${type:-}"
+}
+
+# mysql テーブル一覧一覧 {
+function mysql_show_tables {
+    local type="${1:-}"
+    mysql_query_csv "SHOW TABLES" "${type:-}"
+}
+
+# mysql SQL モード一覧
+function mysql_show_sqlmode {
+    local type="${1:-}"
+    mysql_query_csv "SELECT @@global.sql_mode" "${type:-}"
+}
+
+# mysql 権限確認
+function mysql_show_grants {
+    local user="${1:?ERROR: require privilege user name.}"
+    local host="${2:-localhost}"
+    local type="${3:-}"
+    mysql_query_csv "SHOW GRANTS FOR '${user}'@'${host}'" "${type:-}"
+}
