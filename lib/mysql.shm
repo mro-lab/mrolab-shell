@@ -68,10 +68,10 @@ function mysql_query_csv {
 # mysql ユーザー作成
 function mysql_create_user {
     local user="${1:?ERROR: require user name.}"
-    local pass="${2:?ERROR: require password.}"
+    local pswd="${2:?ERROR: require password.}"
     local host="${3:-localhost}"
     mysql_query_stdin <<- EOS
-    CREATE USER '${user}'@'${host}' IDENTIFIED BY '${pass}'
+    CREATE USER '${user}'@'${host}' IDENTIFIED BY '${pswd}'
 EOS
 }
 

@@ -105,3 +105,12 @@ function b2n {
     done
     echo "${total}"
 }
+
+# オレオレ証明書作成
+function create_cert {
+    local domain="${1:?ERROR: require my domain. example.com}"
+    local dist_name="${2:-/C=JP/ST=Tokyo/L=Nerima/O=none}"
+    openssl genrsa -out "${domain}.key" 2048
+    openssl req -new -key "${domain}.key" -out "${domain}.csr" -subj "${dist_name}/CN=${domain}" -addext "subjectAltName=DNS:${domain}"
+    openssl x509 -req -days 3650 -extfile <(echo "subjectAltName=DNS:${domain}") -signkey "${domain}.key" -set_serial 1 -in "${domain}.csr" -out "${domain}.crt"
+}
