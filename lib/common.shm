@@ -61,8 +61,8 @@ function ecat {
     local ignore_filter=""
     [ -n "${ignore_variables}" ] && ignore_filter=$(printf 's/(\$\{(%s)})/\\\\\\1/g' "${ignore_variables// /|}")
     source <({
-        echo "cat - << EOF"
-        cat "${file_path}" | perl -pe "${ignore_filter:-}"
+        echo "cat - << EOF"     # ↓バッククォートがシェルの解釈時に悪さをするのでサニタイズ
+        cat "${file_path}" | sed "s/\`/'/g" | perl -pe "${ignore_filter:-}"
         echo "EOF"
     })
 }
