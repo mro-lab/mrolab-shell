@@ -61,8 +61,8 @@ function ecat {
     local ignore_filter=""
     [ -n "${ignore_variables}" ] && ignore_filter=$(printf 's/(\$\{(%s)})/\\\\\\1/g' "${ignore_variables// /|}")
     source <({
-        echo "cat - << EOF"
-        cat "${file_path}" | perl -pe "${ignore_filter:-}"
+        echo "cat - << EOF"     # ↓バッククォートがシェルの解釈時に悪さをするのでサニタイズ
+        cat "${file_path}" | sed "s/\`/'/g" | perl -pe "${ignore_filter:-}"
         echo "EOF"
     })
 }
@@ -104,4 +104,15 @@ function b2n {
         total=$((${total}+(${num}*${num_base})))
     done
     echo "${total}"
+}
+
+# オレオレ証明書作成
+function create_cert {
+    local domain="${1:?ERROR: require my domain. example.com}"
+    local dist_name="${2:-/C=JP/ST=Tokyo/L=Nerima/O=none}"
+    local output_dir="${3:-.}"
+    mkdir -p ${output_dir}
+    openssl genrsa -out "${output_dir}/${domain}.key" 2048
+    openssl req -new -key "${output_dir}/${domain}.key" -out "${output_dir}/${domain}.csr" -subj "${dist_name}/CN=${domain}" -addext "subjectAltName=DNS:${domain}"
+    openssl x509 -req -days 3650 -extfile <(echo "subjectAltName=DNS:${domain}") -signkey "${output_dir}/${domain}.key" -set_serial 1 -in "${output_dir}/${domain}.csr" -out "${output_dir}/${domain}.crt"
 }
