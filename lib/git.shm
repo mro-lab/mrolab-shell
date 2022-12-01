@@ -2,8 +2,8 @@
 function git_clone {
     local install_dir="${1:?ERROR: require install dir.}"
     local repository="${2:?ERROR: require repository name. mro-lab/tools.git}"
-    local access_token="${3:+${3}@}"    # アクセストークン
-    local branch="${4:+-b ${4}}"        # ブランチ指定
+    local branch="${3:+-b ${3}}"        # ブランチ指定
+    local access_token="${4:+${4}@}"    # アクセストークン
     rm -rf "${install_dir}"
     git clone "https://${access_token:-}github.com/${repository%.git}" "${install_dir}" ${branch:-}
 }
