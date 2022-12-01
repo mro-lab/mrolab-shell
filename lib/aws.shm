@@ -1,4 +1,0 @@
-# aws リージョンを取得
-function aws_region {
-    aws configure list | grep ' region ' | awk '{print $2}'
-}
