@@ -42,3 +42,11 @@ function github_credential {
 function wait_github_credential {
     wait_private_config "$(github_credential_domain)" "" "" "info"
 }
+
+# バージョン情報
+function version {
+    (
+        cd ${BASH_HOME}
+        echo "$(basename ${BASH_HOME%/*}): $(git rev-parse --abbrev-ref HEAD)"
+    )
+}
