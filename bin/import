@@ -1,0 +1,3 @@
+for path in $(find $(realpath "${BASH_SOURCE[0]%/*}/../lib") -type f); do
+    source ${path}
+done

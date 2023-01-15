@@ -1,0 +1,38 @@
+# docker：コンテナログイン
+function docker_login {
+    local docker_dir="${1:?ERROR: require docker-compose.yml directory.}"
+    local user="${2:-root}"
+    (
+        cd ${docker_dir}
+        docker-compose exec --user "${user}" "${docker_dir##*/}" /bin/bash ||:  # エラーメッセージ抑制
+    )
+}
+
+# docker：ログ表示
+function docker_logs {
+    local docker_dir="${1:?ERROR: require docker-compose.yml directory.}"
+    local user="${2:-root}"
+    (
+        cd ${docker_dir}
+        docker-compose logs
+    )
+}
+
+# docker：コンテナ起動
+function docker_start {
+    local docker_dir="${1:?ERROR: require docker-compose.yml directory.}"
+    local no_start="${2:+--no-start}"
+    (
+        cd ${docker_dir}
+        docker-compose up ${no_start:--d}
+    )
+}
+
+# docker：コンテナ停止
+function docker_stop {
+    local docker_dir="${1:?ERROR: require docker-compose.yml directory.}"
+    (
+        cd ${docker_dir}
+        docker-compose down
+    )
+}
