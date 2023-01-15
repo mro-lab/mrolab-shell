@@ -24,3 +24,29 @@ function wait_private_config {
     [ -n "${info}" ] && echo "ERROR: wait_private_config timeout. ${domain}"
     return 1    # タイムアウト
 }
+
+# github 資格情報ドメイン取得
+function github_credential_domain {
+    echo "github-crypted-credential.${SVC_TYPE}.${SVC_NAME}.config"
+}
+
+# github 資格情報取得
+function github_credential {
+    local crypted_credential="${1:-$(private_config $(github_credential_domain))}"
+    local decrypted_key="${2:-${CRYPT_KEY:?ERROR: require decrypted key.}}"
+    echo "${crypted_credential}" | decrypt "${decrypted_key}"
+}
+
+# github 資格情報のプライベートコンフィグ反映待ち
+# 起動が速い時に DNS に伝搬しきる前に取得しにいってしまうケースを抑制
+function wait_github_credential {
+    wait_private_config "$(github_credential_domain)" "" "" "info"
+}
+
+# バージョン情報
+function version {
+    (
+        cd ${BASH_HOME}
+        echo "$(basename ${BASH_HOME%/*}): $(git rev-parse --abbrev-ref HEAD)"
+    )
+}
