@@ -137,7 +137,7 @@ function mysql_show_databases {
     mysql_query_csv "SHOW DATABASES" "${type:-}"
 }
 
-# mysql テーブル一覧一覧 {
+# mysql テーブル一覧取得 {
 function mysql_show_tables {
     local type="${1:-}"
     mysql_query_csv "SHOW TABLES" "${type:-}"
