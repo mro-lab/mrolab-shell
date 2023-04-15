@@ -1,0 +1,123 @@
+# psql 接続情報初期化
+function psql_init {
+    local host="${1:?ERROR: require hostname. (localhost|localhost:5432)}"
+    local user="${2:?ERROR: require user name.}"
+    local pswd="${3:?ERROR: require password.}"
+    local dbname="${4:-}"
+    local option="${5:-}"
+    local word=(${host/:/ })
+    export PSQL_HOST="${word[0]}"
+    export PSQL_PORT="${word[1]:-5432}"
+    export PSQL_USER="${user}"
+    export PGPASSWORD="${pswd}"
+    export PSQL_DBNAME="${dbname:-}"
+    export PSQL_OPTION="${option:-}"
+}
+
+# psql クエリ発行：標準入力
+# そのまま接続も可能
+function psql_query {
+    psql -h "${PSQL_HOST}" -p "${PSQL_PORT:-5432}" -U "${PSQL_USER}" -d "${PSQL_DBNAME}" ${PSQL_OPTION} "${@}"
+}
+
+# psql クエリ発行：結果を csv 出力
+function psql_query_csv {
+    local opt_null="${1:+NULL AS '[null]'}"
+    local opt_head="${2:+HEADER}"
+    local opt_delim="${3:+DELIMITER '${4}'}"
+    local opt_quote="${4:+FORCE QUOTE *}"
+    {
+        echo "COPY ("
+        cat -
+        echo ") TO stdout WITH CSV ${opt_null} ${opt_head} ${opt_delim} ${opt_quote}"
+    } | psql_query
+}
+
+# psql クエリ発行：トランザクション
+function psql_query_transaction {
+    local transaction="${1:+COMMIT}"
+    {
+        echo "\set AUTOCOMMIT off"
+        echo "BEGIN;"
+        cat - 
+        echo "${transaction:-ROLLBACK};"
+    } | psql_query
+}
+
+# psql 設定値一覧取得
+function psql_show_settings {
+    psql_query_csv <<- EOS
+    SELECT name, setting, unit FROM pg_settings
+EOS
+}
+
+# psql ユーザー一覧取得
+function psql_show_users {
+    psql_query_csv <<- EOS
+    SELECT usename FROM pg_user
+EOS
+}
+
+# psql データベース一覧取得
+function psql_show_databases {
+    psql_query_csv <<- EOS
+    SELECT datname FROM pg_database
+EOS
+}
+
+# psql テーブル一覧取得
+function psql_show_tables {
+    psql_query_csv <<- EOS
+    SELECT DISTINCT table_name FROM information_schema.columns
+EOS
+}
+
+# psql ユーザー作成
+# https://www.postgresql.jp/document/14/html/sql-createuser.html
+function psql_create_user {
+    local user="${1:?ERROR: require user name.}"
+    local pswd="${2:?ERROR: require password.}"
+    psql_query <<- EOS
+    CREATE USER ${user} WITH PASSWORD '${pswd}'
+EOS
+}
+
+# psql ユーザー削除
+# https://www.postgresql.jp/document/14/html/sql-dropuser.html
+function psql_drop_user {
+    local user="${1:?ERROR: require user name.}"
+    psql_query <<- EOS
+    DROP USER IF EXISTS ${user}
+EOS
+}
+
+# psql アクセス権限付与
+# https://qiita.com/bwtakacy/items/845c193c6da3218a546d
+function psql_grant_role {
+    local base_user="${1:?ERROR: require base user name.}"
+    local auth_user="${2:-CURRENT_USER}"
+    psql_query <<- EOS
+    GRANT ${base_user} TO ${auth_user}
+EOS
+}
+
+# psql データベース作成
+# https://www.postgresql.jp/document/14/html/sql-createdatabase.html
+function psql_create_database {
+    local dbname="${1:?ERROR: require database name.}"
+    local owner="${2:-root}"
+    psql_query <<- EOS
+    CREATE DATABASE ${dbname} OWNER ${owner}
+EOS
+}
+
+# psql データベース削除
+# https://www.postgresql.jp/document/14/html/sql-dropdatabase.html
+function psql_drop_database {
+    local dbname="${1:?ERROR: require database name.}"
+    psql_query <<- EOS
+    DROP DATABASE ${dbname}
+EOS
+}
+
+
