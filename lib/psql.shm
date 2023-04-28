@@ -44,6 +44,17 @@ function psql_query_transaction {
     } | psql_query
 }
 
+# psql カラムヘッダ取得
+function psql_show_header {
+    local table_name="${1:?ERROR: require table name.}"
+    psql_query_csv <<- EOS | tr '\n' ',' | sed 's/,$/\n/'
+    SELECT column_name FROM information_schema.columns
+    WHERE
+        table_name = '${table_name}'
+    ORDER BY ordinal_position
+EOS
+}
+
 # psql 設定値一覧取得
 function psql_show_settings {
     psql_query_csv <<- EOS
@@ -68,9 +79,43 @@ EOS
 # psql テーブル一覧取得
 function psql_show_tables {
     psql_query_csv <<- EOS
-    SELECT DISTINCT table_name FROM information_schema.columns
+    SELECT tablename FROM pg_tables
+    WHERE
+        schemaname NOT IN('pg_catalog','information_schema')
 EOS
 }
+
+# psql インデックス一覧取得
+function psql_show_indexes {
+    psql_query_csv <<- EOS
+    SELECT tablename, indexname FROM pg_indexes
+    WHERE
+        schemaname NOT IN('pg_catalog','information_schema')
+EOS
+}
+
+# psql ストアド一覧取得
+function psql_show_stored {
+    psql_query_csv <<- EOS
+    SELECT
+        proname,
+        PG_GET_FUNCTION_ARGUMENTS(oid) AS argument_data_type,
+        COALESCE(PG_GET_FUNCTION_RESULT(oid),'none') AS result_data_type
+    FROM pg_proc
+    WHERE
+        proname IN(
+            SELECT
+                routine_name
+            FROM information_schema.routines
+            WHERE
+                routine_schema NOT IN('pg_catalog','information_schema'))
+EOS
+}
+
+{
+    echo "prname,arg,result"
+    psql_show_stored
+} > test3.csv
 
 # psql ユーザー作成
 # https://www.postgresql.jp/document/14/html/sql-createuser.html
@@ -119,5 +164,3 @@ function psql_drop_database {
     DROP DATABASE ${dbname}
 EOS
 }
-
-
