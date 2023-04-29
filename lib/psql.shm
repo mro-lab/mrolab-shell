@@ -94,8 +94,8 @@ function psql_show_indexes {
 EOS
 }
 
-# psql ストアド一覧取得
-function psql_show_stored {
+# psql プロシージャ一覧取得
+function psql_show_procs {
     psql_query_csv <<- EOS
     SELECT
         proname,
@@ -111,11 +111,6 @@ function psql_show_stored {
                 routine_schema NOT IN('pg_catalog','information_schema'))
 EOS
 }
-
-{
-    echo "prname,arg,result"
-    psql_show_stored
-} > test3.csv
 
 # psql ユーザー作成
 # https://www.postgresql.jp/document/14/html/sql-createuser.html
