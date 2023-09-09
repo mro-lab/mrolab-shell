@@ -24,13 +24,24 @@ function psql_query {
 function psql_query_csv {
     local opt_null="${1:+NULL AS '[null]'}"
     local opt_head="${2:+HEADER}"
-    local opt_delim="${3:+DELIMITER '${4}'}"
+    local opt_delim="${3:+DELIMITER '${3}'}"
     local opt_quote="${4:+FORCE QUOTE *}"
     {
         echo "COPY ("
         cat -
         echo ") TO stdout WITH CSV ${opt_null} ${opt_head} ${opt_delim} ${opt_quote}"
     } | psql_query
+}
+
+# psql クエリ発行：csv をインポート
+function psql_query_csv_import {
+    local table_name="${1:?ERROR: require table name.}"
+    local columns="${2:-$(psql_show_header ${table_name})}"
+    local opt_null="${3:+NULL AS '[null]'}"
+    local opt_head="${4:+HEADER}"
+    local opt_delim="${5:+DELIMITER '${5}'}"
+    local opt_quote="${6:+FORCE QUOTE *}"
+    psql_query "-c" "COPY ${table_name}(${columns}) FROM stdin WITH CSV ${opt_null} ${opt_head} ${opt_delim} ${opt_quote}"
 }
 
 # psql クエリ発行：トランザクション
