@@ -17,7 +17,7 @@ function psql_init {
 # psql クエリ発行：標準入力
 # そのまま接続も可能
 function psql_query {
-    psql -h "${PSQL_HOST}" -p "${PSQL_PORT:-5432}" -U "${PSQL_USER}" -d "${PSQL_DBNAME}" ${PSQL_OPTION} "${@}"
+    psql -h "${PSQL_HOST}" -p "${PSQL_PORT:-5432}" -U "${PSQL_USER}" -d "${PSQL_DBNAME:-}" ${PSQL_OPTION:-} "${@}"
 }
 
 # psql クエリ発行：結果を csv 出力
@@ -123,6 +123,7 @@ function psql_show_procs {
 EOS
 }
 
+#---------------------------
 # psql ユーザー作成
 # https://www.postgresql.jp/document/14/html/sql-createuser.html
 function psql_create_user {
