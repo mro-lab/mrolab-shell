@@ -1,0 +1,23 @@
+# 並列実行制御
+function parallel {
+    local max="${1:?ERROR: require parallel max count.}"
+    local sleep="${2:-1}"
+    local count=$(jobs | wc -l) # 初回判定
+    while [ "${count}" -ge "${max}" ]; do   # count >= max で最大を超えていた
+        echo "INFO: parallel wait ${sleep}sec. parallel jobs up to ${max}." 1>&2
+        sleep "${sleep}"
+        count=$(jobs | wc -l)   # 更新
+    done
+}
+
+# 並列実行待ち：通常は wait でよいが、別プロセス等でトラッキングできない時用
+function parallel_wait {
+    local name="${1:?ERROR: require pgrep process name.}"
+    local sleep="${3:-1}"
+    local count=$(pgrep -cf -- "${name}" ||:)   # 初回判定
+    while [ "${count}" -gt "0" ]; do        # カウントが 0 になるまで待ち
+        echo "INFO: parallel wait ${sleep}sec. waiting for parallel job to complete. ${count}" 1>&2
+        sleep "${sleep}"
+        count=$(pgrep -cf -- "${name}" ||:)     # 更新
+    done
+}
