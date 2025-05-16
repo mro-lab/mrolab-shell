@@ -34,10 +34,19 @@ function mysql_query_csv {
 # mysql クエリ発行：csv をインポート
 function mysql_query_csv_import {
     local table_name="${1:?ERROR: require table name.}"
-    local opt_head="${2:+IGNORE 1 LINES}"
+    local opt_head="${2:-}"
     local opt_delim="${3:-,}"
     local opt_quote="${4:-\"}"
-    mysql_query --local-infile=1 -e "LOAD DATA LOCAL INFILE '/dev/stdin' INTO TABLE ${table_name} FIELDS TERMINATED BY '${opt_delim}' ENCLOSED BY '${opt_quote}' LINES TERMINATED BY '\n' ${opt_head}"
+    local opt_import="${5:-}"
+    mysql_query --local-infile=1 -e "
+    LOAD DATA LOCAL INFILE '/dev/stdin'
+    INTO TABLE ${table_name}
+    FIELDS TERMINATED BY '${opt_delim}'
+    ENCLOSED BY '${opt_quote}'
+    LINES TERMINATED BY '\n'
+    ${opt_head:+IGNORE 1 LINES}
+    ${opt_import:+SET ${opt_import}}
+    "
 }
 
 # mysql クエリ発行：トランザクション
@@ -101,6 +110,123 @@ EOS
 }
 
 #---------------------------
+# mysql テーブル詳細ヘッダ取得
+function mysql_describe_tables_header {
+    cat <<- EOS | perl -pe 's/[\n ]//g' | sed 's/$/\n/'
+    table_name, table_type, engine, auto_increment,
+    partition_method, table_comment
+EOS
+}
+
+# mysql テーブル詳細一覧取得
+function mysql_describe_tables {
+    local columns="${1:-$(mysql_describe_table_headers)}"
+    mysql_query_csv "qq" <<- EOS
+    SELECT ${columns}
+    FROM (
+        SELECT *, -- パーティション情報を追加
+            (SELECT distinct partition_method FROM information_schema.partitions
+            WHERE
+                table_name = t.table_name) AS partition_method
+        FROM information_schema.tables AS t
+        WHERE
+            table_schema = DATABASE()
+        ) AS v
+    ORDER BY table_name
+EOS
+}
+
+# mysql テーブルカラム詳細ヘッダ取得
+function mysql_describe_table_columns_header {
+    cat <<- EOS | perl -pe 's/[\n ]//g' | sed 's/$/\n/'
+    table_name, column_name, ordinal_position, is_nullable, data_type, column_type,
+    character_maximum_length, numeric_precision, numeric_scale, datetime_precision,
+    character_set_name, column_key, column_comment
+EOS
+}
+
+# mysql テーブルカラム詳細一覧取得
+function mysql_describe_table_columns {
+    local columns="${1:-$(mysql_describe_table_column_headers)}"
+    mysql_query_csv "qq" <<- EOS
+    SELECT ${columns}
+    FROM information_schema.columns
+    WHERE
+        table_schema = DATABASE()
+    ORDER BY table_name, ordinal_position
+EOS
+}
+
+
+# mysql インデックス詳細ヘッダ取得
+function mysql_describe_indexes_header {
+    cat <<- EOS | perl -pe 's/[\n ]//g' | sed 's/$/\n/'
+    index_name, table_name, column_name, seq_in_index, index_type, 
+    is_visible, nullable, non_unique, expression, comment
+EOS
+}
+
+# mysql インデックス詳細一覧取得
+function mysql_describe_indexes {
+    local columns="${1:-$(mysql_describe_index_headers)}"
+    mysql_query_csv "qq" <<- EOS
+    SELECT ${columns}
+    FROM information_schema.statistics
+    WHERE
+        index_schema = DATABASE()
+    ORDER BY index_name, table_name, seq_in_index
+EOS
+}
+
+# mysql プロシージャ詳細ヘッダ取得
+function mysql_describe_procs_header {
+    cat <<- EOS | perl -pe 's/[\n ]//g' | sed 's/$/\n/'
+    routine_name, routine_type, data_type,
+    character_maximum_length, numeric_precision, numeric_scale, datetime_precision,
+    dtd_identifier, character_set_name, external_name, external_language,
+    parameter_style, is_deterministic, sql_data_access, sql_path, security_type
+EOS
+}
+
+# mysql プロシージャ詳細一覧取得
+function mysql_describe_procs {
+    local columns="${1:-$(mysql_describe_proc_headers)}"
+    mysql_query_csv "qq" <<- EOS
+    SELECT ${columns}
+    FROM information_schema.routines
+    WHERE
+        routine_schema = DATABASE()
+    ORDER BY routine_name
+EOS
+}
+
+# mysql トリガー詳細ヘッダ取得
+function mysql_describe_triggers_header {
+    cat <<- EOS | perl -pe 's/[\n ]//g' | sed 's/$/\n/'
+    trigger_name, event_object_table, event_manipulation, 
+    action_orientation, action_timing, 
+    action_order, action_condition,
+    action_reference_old_table, 
+    action_reference_new_table, 
+    action_reference_old_row, 
+    action_reference_new_row,
+    action_statement
+EOS
+}
+
+# mysql トリガー詳細一覧取得
+function mysql_describe_triggers {
+    local columns="${1:-$(mysql_describe_trigger_headers)}"
+    mysql_query_csv "qq" <<- EOS
+    SELECT ${columns}
+    FROM information_schema.triggers
+    WHERE
+        trigger_schema = DATABASE()
+    ORDER BY trigger_name
+EOS
+}
+
+#---------------------------
 # mysql ユーザー作成
 function mysql_create_user {
     local user="${1:?ERROR: require user name.}"
@@ -154,6 +280,7 @@ function mysql_grant_database {
     local host="${3:-localhost}"
     mysql_grant "ALL" "${dbname}.*" "${user}" "${host}"
 }
+
 
 
 #---------------------------
