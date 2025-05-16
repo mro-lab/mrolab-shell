@@ -117,6 +117,11 @@ function create_cert {
     openssl x509 -req -days 3650 -extfile <(echo "subjectAltName=DNS:${domain}") -signkey "${output_dir}/${domain}.key" -set_serial 1 -in "${output_dir}/${domain}.csr" -out "${output_dir}/${domain}.crt"
 }
 
+# utf8bom 出力
+function utf8bom {
+    echo -en '\xEF\xBB\xBF'
+}
+
 # 使い方情報を表示
 function usage {
     cat ${0} | sed -n '/^#.*#$/,$p' | egrep ';;|#'

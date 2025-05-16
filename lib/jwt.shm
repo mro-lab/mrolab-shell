@@ -1,0 +1,48 @@
+# JWT：生成
+function jwt_create {
+  local private_key_file="${1:?ERROR: require private key file path.}"
+  local issuer="${2:?ERROR: require issuer.}" # 発行者
+  local expire_sec="${3:-600}"                # 有効期限：秒
+  local issued_at="${4:-$(date '+%s')}"       # 現在時刻：秒
+  local header=$(
+    jwt_create_header | 
+    jwt_convert_base64)
+  local payload=$(
+    jwt_create_payload "${issuer}" "${expire_sec}" "${issued_at}" |
+    jwt_convert_base64)
+  local signature=$(
+    echo -n "${header}.${payload}" | 
+    openssl dgst -sha256 -sign "${private_key_file}" |
+    jwt_convert_base64)
+  echo "${header}.${payload}.${signature}"
+}
+
+# JWT：ヘッダ生成
+function jwt_create_header {
+cat <<- EOS | jq -rc
+{
+  "typ": "JWT",
+  "alg": "RS256"
+}
+EOS
+}
+
+# JWT：ペイロード生成
+# https://kamichidu.github.io/post/2017/01/24-about-json-web-token/
+function jwt_create_payload {
+  local issuer="${1:?ERROR: require issuer.}" # 発行者
+  local expire_sec="${2:-60}"                 # 有効期限：秒
+  local issued_at="${3:-$(date '+%s')}"       # 現在時刻：秒
+cat <<- EOS | jq -rc
+  {
+    "iss": "${issuer}",
+    "exp": $((${issued_at}+${expire_sec})),
+    "iat": ${issued_at}
+  }
+EOS
+}
+
+# JWT：base64 変換
+function jwt_convert_base64 {
+  openssl base64 -A | tr -d '=' | tr '/+' '_-'
+}

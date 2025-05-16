@@ -1,0 +1,138 @@
+# 利用イメージ
+# dbhost=aws-demo-dev-vpc01-rds-mydb-oracle.c1icyyus4dc4.ap-northeast-1.rds.amazonaws.com
+# oracle_save_tnsnames tns "${dbhost}:21521" ORCL
+# oracle_init "[username]" "[password]"
+# echo "SELECT * FROM project_phase2 WHERE rownum <= 5" | oracle_query_csv
+# echo "TRUNCATE TABLE project_phase2" | oracle_query_csv
+
+# パスワード認証待ち時間：秒指定
+export ORACLE_PWD_INTERVAL=1
+
+# oracle tnsnames.ora を保存
+function oracle_save_tnsnames {
+    local dir_path="${1:?ERROR: require output tnsnames.ora dirctory.}"
+    local host="${2:?ERROR: require hostname. (localhost|localhost:3306}"
+    local sid="${3:?ERROR: require sid name.}"
+    local tns="${4:-myora}"
+    local word=(${host/:/ })
+    mkdir -p "${dir_path}"
+    export TNS_ADMIN=$(realpath "${dir_path}")
+    cat <<- EOS | cut -c5- > "${TNS_ADMIN}/tnsnames.ora"
+    ${tns} =
+      (DESCRIPTION =
+        (ADDRESS = (PROTOCOL = TCP)(HOST = ${word[0]})(PORT = ${word[1]:-1521}))
+        (CONNECT_DATA =
+          (SID = ${sid})
+        )
+      )
+EOS
+}
+
+# oracle 接続情報初期化
+function oracle_init {
+    local user="${1:?ERROR: require user name.}"
+    local pswd="${2:?ERROR: require password.}"
+    local tns="${3:-myora}"
+    local option="${4:-}"
+    export ORACLE_USER="${user}"
+    export ORACLE_PWD="${pswd}"
+    export ORACLE_TNS="${tns}"
+    export ORACLE_OPTION="${option}"
+}
+
+# クエリ発行
+function oracle_query {
+    {
+        echo "${ORACLE_PWD}"
+        sleep "${ORACLE_PWD_INTERVAL:-1}"
+        echo "SET PAGESIZE 0;"      # ページ分割抑制
+        echo "SET LINESIZE 32767;"  # 行バッファ拡張
+        echo "SET TRIMSPOOL ON;"    # 余分なスペースを削除
+        echo "SET TERMOUT OFF;"     # 画面出力を抑制
+        echo "SET ECHO OFF;"        # SQL文のエコーバックを抑制
+        echo "SET VERIFY OFF;"      # 変数の確認を抑制
+        echo "SET MARKUP CSV ON;"   # csv 出力
+        cat -                       # クエリ
+#       cat - | sed -u '$s/$/\n;/'  # クエリ終端の ; を付与
+#    } | tee /dev/stderr | sqlplus -S ${ORACLE_USER}@${ORACLE_TNS} | sed '1d'
+    } | sqlplus -S ${ORACLE_USER}@${ORACLE_TNS} | sed '1d'
+}
+
+# oracle クエリ発行：結果を csv 出力
+function oracle_query_csv {
+    {
+        echo "SET FEEDBACK OFF;"    # rows selected. 抑制
+        echo "SET HEADING OFF;"     # ヘッダ抑制
+        cat -                       # クエリ
+    } | oracle_query
+}
+
+# oracle クエリ発行：csv をインポート
+# https://docs.oracle.com/cd/F39414_01/sutil/oracle-sql-loader-control-file-contents.html
+function oracle_query_import {
+    local table_name="${1:?ERROR: require table name.}"
+    local columns="${2:-$(oracle_show_headers ${table_name})}"
+    local load_type="${3:-}"  # ロードタイプ：INSERT/APPEND/REPLACE/TRUNCATE
+    local direct="${4:+DIRECT=TRUE}"  # ダイレクトパスロード
+    local nullcols="${5:+TRAILING NULLCOLS}"
+    local bad_file="${6:+BADFILE '${5}'}"
+    local discard_file="${6+DISCARDFILE '${6}'}"
+    {
+        echo "${ORACLE_PWD}"
+        sleep "${ORACLE_PWD_INTERVAL:-1}"
+        cat -   # 入力データを stdin で受け取る
+    } | sqlldr ${ORACLE_USER}@${ORACLE_TNS} control=<(cat <<- EOS
+    LOAD DATA
+    ${bad_file}
+    ${discard_file}
+    ${load_type}
+    INTO TABLE ${table_name}
+    FIELDS TERMINATED BY ','
+    ${nullcols}
+    (${columns})
+EOS
+) data=\'-\' ${direct:-}
+}
+
+# カラムヘッダ取得
+function oracle_show_headers {
+    local table_name="${1:?ERROR: require table name.}"
+    oracle_query_csv <<- EOS | sed 's/"//g' | tr '\n' ',' | sed 's/,$/\n/'
+    SELECT column_name FROM all_tab_columns
+    WHERE
+        table_name = UPPER('${table_name}')
+    ORDER BY column_id;
+EOS
+}
+
+# テーブル一覧取得
+function oracle_show_tables {
+    oracle_query_csv <<- EOS | sed 's/"//g'
+    SELECT table_name FROM user_tables
+    ORDER BY table_name;
+EOS
+}
+
+# 実行計画クエリ取得
+function oracle_show_plan_sql {
+    echo "SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY());"
+}
+
+
+#-------------------------------------
+# テーブルカラム詳細ヘッダ取得
+function oracle_describe_table_column_headers {
+    cat <<- EOS | perl -pe 's/[\n ]//g' | sed 's/$/\n/'
+    table_name, column_name, column_id, nullable, 
+    data_type, data_length, data_precision
+EOS
+}
+
+# テーブルカラム詳細一覧取得
+function oracle_describe_table_columns {
+    local columns="${1:-$(oracle_describe_table_headers)}"
+    oracle_query_csv <<- EOS
+    SELECT ${columns} FROM user_tab_columns
+    ORDER BY table_name, column_id;
+EOS
+}
